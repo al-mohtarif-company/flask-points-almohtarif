@@ -374,6 +374,38 @@ def evaluation_type_counts():
         'labels': labels,
         'counts': counts
     })
+    # Route لتحصيل التقييمات والنجوم حسب موظفي العمليات
+@app.route('/api/operations-stars-evaluations', methods=['GET'])
+def get_operations_stars_evaluations():
+    # الحصول على التواريخ من الـ frontend
+    start_date = request.args.get('start_date')
+    end_date = request.args.get('end_date')
+    
+    # تحويل التواريخ إلى كائنات datetime
+    start_date = datetime.strptime(start_date, '%Y-%m-%d')
+    end_date = datetime.strptime(end_date, '%Y-%m-%d')
+    
+    # جلب مجموع النجوم لكل موظف خلال الفترة المحددة
+    results = db.session.query(
+        Evaluation.operations_employee,
+        func.sum(Evaluation.operations_evaluation).label('total_stars')
+    ).filter(
+        Evaluation.created_at >= start_date,
+        Evaluation.created_at <= end_date,
+        Evaluation.operations_evaluation.in_([1, 2, 3, 4, 5])  # لا حاجة لسلاسل نصية
+    ).group_by(
+        Evaluation.operations_employee
+    ).order_by(
+        desc('total_stars')
+    ).all()
+    
+    # تنظيم البيانات للإرجاع فقط بدون الفترة
+    employees = [{
+        'name': r.operations_employee,
+        'total_stars': r.total_stars
+    } for r in results]
+    
+    return jsonify(employees)
 # Route لتحصيل التقييمات المرسلة حسب التاريخ لموظفي العمليات
 @app.route('/api/history-operations-evaluations', methods=['GET'])
 def get_history_operations_evaluations():
